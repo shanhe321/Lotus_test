@@ -14,6 +14,8 @@ from pipeline import LotusGPipeline, LotusDPipeline
 from utils.image_utils import colorize_depth_map
 from utils.seed_all import seed_all
 
+from torchvision import transforms
+
 check_min_version('0.28.0.dev0')
 
 def parse_args():
@@ -180,11 +182,18 @@ def main():
                 autocast_ctx = torch.autocast(pipeline.device.type)
             with autocast_ctx:
                 # Preprocess validation image
-                test_image = Image.open(test_images[i]).convert('RGB')
-                test_image = np.array(test_image).astype(np.float32)
-                test_image = torch.tensor(test_image).permute(2,0,1).unsqueeze(0)
-                test_image = test_image / 127.5 - 1.0 
-                test_image = test_image.to(device)
+                # test_image = Image.open(test_images[i]).convert('RGB')
+                # test_image = np.array(test_image).astype(np.float32)
+                # test_image = torch.tensor(test_image).permute(2,0,1).unsqueeze(0)
+                # test_image = test_image / 127.5 - 1.0 
+                # test_image = test_image.to(device)
+
+                test_image = Image.open(test_images[i]).convert("RGB")
+                to_tensor_transform = transforms.ToTensor()
+                test_image = to_tensor_transform(test_image)
+                normalize_transform = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                test_image = normalize_transform(test_image)
+                test_image = test_image.unsqueeze(0).to(device)
 
                 task_emb = torch.tensor([1, 0]).float().unsqueeze(0).repeat(1, 1).to(device)
                 task_emb = torch.cat([torch.sin(task_emb), torch.cos(task_emb)], dim=-1).repeat(1, 1)

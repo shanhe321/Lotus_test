@@ -100,7 +100,7 @@ class HypersimImageDepthNormalTransform:
         # to_tensor and normalize
         # image
         image = transforms.ToTensor()(image)
-        image = transforms.Normalize([0.5], [0.5])(image)
+        image = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])(image)
 
         # depth
         # if self.norm_type == 'instnorm':

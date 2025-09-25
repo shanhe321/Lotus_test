@@ -7,7 +7,10 @@ export NCCL_IB_DISABLE="1"
 
 # export PYTHONPATH="$(dirname "$(dirname "$0")"):$PYTHONPATH"
 
+export MODEL_NAME="jingheya/lotus-normal-d-v1-1"
+export MODEL_NAME_2="lotus-normal-d-v1-1"
 export MODEL_NAME="stabilityai/stable-diffusion-2-base"
+export MODEL_NAME_2="stable-diffusion-2-base"
 
 # training dataset
 export TRAIN_DATA_DIR_HYPERSIM="/vip_media/jinshan/Data/DIS5K"
@@ -34,7 +37,7 @@ export VAL_STEP=250 # 评估一次
 export CHECKPOINT_STEP=500 # 保存一次模型
 
 # output dir
-export OUTPUT_DIR="output/train-lotus-d-${TASK_NAME}-bsz${TOTAL_BSZ}/"
+export OUTPUT_DIR="output/train-lotus-g-${TASK_NAME}-bsz${TOTAL_BSZ}-${MODEL_NAME_2}/"
 
 accelerate launch --config_file=accelerate_configs/$CUDA.yaml --mixed_precision="fp16" \
   --main_process_port="13324" \

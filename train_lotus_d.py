@@ -203,10 +203,11 @@ def run_example_validation(pipeline, task, args, step, accelerator, generator):
                 # Preprocess validation image 预处理数据：转换为RGB、归一化
                 validation_image = Image.open(validation_images[i]).convert("RGB")
                 input_images.append(validation_image)
-                validation_image = np.array(validation_image).astype(np.float32)
-                validation_image = torch.tensor(validation_image).permute(2,0,1).unsqueeze(0)
-                validation_image = validation_image / 127.5 - 1.0 
-                validation_image = validation_image.to(accelerator.device)
+                to_tensor_transform = transforms.ToTensor()
+                validation_image = to_tensor_transform(validation_image)
+                normalize_transform = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                validation_image = normalize_transform(validation_image)
+                validation_image = validation_image.unsqueeze(0).to(accelerator.device)
 
                 # 执行预测深度图的任务
                 task_emb = torch.tensor([1, 0]).float().unsqueeze(0).repeat(1, 1).to(accelerator.device)

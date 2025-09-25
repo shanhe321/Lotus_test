@@ -203,10 +203,12 @@ def run_example_validation(pipeline, task, args, step, accelerator, generator):
                 # Preprocess validation image 预处理数据：转换为RGB、归一化
                 validation_image = Image.open(validation_images[i]).convert("RGB")
                 input_images.append(validation_image)
-                validation_image = np.array(validation_image).astype(np.float32)
-                validation_image = torch.tensor(validation_image).permute(2,0,1).unsqueeze(0)
-                validation_image = validation_image / 127.5 - 1.0 
-                validation_image = validation_image.to(accelerator.device)
+                to_tensor_transform = transforms.ToTensor()
+                validation_image = to_tensor_transform(validation_image)
+                normalize_transform = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                validation_image = normalize_transform(validation_image)
+                validation_image = validation_image.unsqueeze(0).to(accelerator.device)
+
 
                 # 执行预测深度图的任务
                 task_emb = torch.tensor([1, 0]).float().unsqueeze(0).repeat(1, 1).to(accelerator.device)
@@ -227,10 +229,16 @@ def run_example_validation(pipeline, task, args, step, accelerator, generator):
                 pred_depth = pred_depth.mean(axis=-1) # 取平均值变成单通道
 
                 pred_depth = (pred_depth > 0.5).astype(np.uint8)
+                pred_depth = pred_depth.astype(np.uint8)
+
                 pred_depth_to_save = Image.fromarray(pred_depth * 255).convert("L")
 
                 # is_reverse_color = "disparity" in args.norm_type
                 # depth_color = colorize_depth_map(pred_depth, reverse_color=is_reverse_color)
+
+                # pred_image_np = (pred_depth * 255).astype(np.uint8)
+
+                # pred_depth_to_save = Image.fromarray(pred_image_np).convert("RGB")
                 
                 pred_annos.append(pred_depth_to_save)
 
@@ -813,23 +821,23 @@ def main():
     
     # Replace the first layer to accept 8 in_channels. 
     # 改造U-Net输入使其适配8通道
-    _weight = unet.conv_in.weight.clone()
-    _bias = unet.conv_in.bias.clone()
-    _weight = _weight.repeat(1, 2, 1, 1) 
-    _weight *= 0.5
-    # unet.config.in_channels *= 2
-    config_dict = EasyDict(unet.config)
-    config_dict.in_channels *= 2
-    unet._internal_dict = config_dict
+    # _weight = unet.conv_in.weight.clone()
+    # _bias = unet.conv_in.bias.clone()
+    # _weight = _weight.repeat(1, 2, 1, 1) 
+    # _weight *= 0.5
+    # # unet.config.in_channels *= 2
+    # config_dict = EasyDict(unet.config)
+    # config_dict.in_channels *= 2
+    # unet._internal_dict = config_dict
 
-    # new conv_in channel
-    _n_convin_out_channel = unet.conv_in.out_channels
-    _new_conv_in =nn.Conv2d(
-        8, _n_convin_out_channel, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)
-    )
-    _new_conv_in.weight = nn.Parameter(_weight)
-    _new_conv_in.bias = nn.Parameter(_bias)
-    unet.conv_in = _new_conv_in
+    # # new conv_in channel
+    # _n_convin_out_channel = unet.conv_in.out_channels
+    # _new_conv_in =nn.Conv2d(
+    #     8, _n_convin_out_channel, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)
+    # )
+    # _new_conv_in.weight = nn.Parameter(_weight)
+    # _new_conv_in.bias = nn.Parameter(_bias)
+    # unet.conv_in = _new_conv_in
 
     # Freeze vae and text_encoder and set unet to trainable
     # 冻结VAE、文本编码器，训练U-Net
@@ -1177,6 +1185,13 @@ def main():
                 anno_loss = F.mse_loss(model_pred[:bsz_per_task][valid_mask_down_anno].float(), target[:bsz_per_task][valid_mask_down_anno].float(), reduction="mean")
                 rgb_loss = F.mse_loss(model_pred[bsz_per_task:][valid_mask_down_rgb].float(), target[bsz_per_task:][valid_mask_down_rgb].float(), reduction="mean")
                 loss = anno_loss + rgb_loss
+
+                # print("model_pred",model_pred.shape)
+                # print("bsz_per_task",bsz_per_task)
+                # print("model_pred[:bsz_per_task]",model_pred[:bsz_per_task].shape)
+                # print("model_pred[:bsz_per_task][valid_mask_down_anno]",model_pred[:bsz_per_task][valid_mask_down_anno].shape)
+                # print("model_pred[:bsz_per_task][valid_mask_down_anno].float()",model_pred[:bsz_per_task][valid_mask_down_anno].float().shape)
+                # print("model_pred[bsz_per_task:][valid_mask_down_rgb].float()",model_pred[bsz_per_task:][valid_mask_down_rgb].float().shape)
 
                 # Gather loss
                 avg_anno_loss = accelerator.gather(anno_loss.repeat(args.train_batch_size)).mean()
